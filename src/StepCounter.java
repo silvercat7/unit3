@@ -13,7 +13,21 @@ public class StepCounter {
         ArrayList<Double> accelerometerY = getColumn(getValues(lines), 1);
         ArrayList<Double> accelerometerZ = getColumn(getValues(lines), 2);
         plotData(accelerometerX);
-        System.out.println(countPeaks(getMagnitudes(accelerometerX, accelerometerY, accelerometerZ)));
+        ArrayList<Double> magnitudes = getMagnitudes(accelerometerX, accelerometerY, accelerometerZ);
+        ArrayList<Integer> peakIndexes = getPeakIndexes(magnitudes);
+        ArrayList<Double> peakValues = getValuesAt(magnitudes, peakIndexes);
+        ScatterPlot plot = new ScatterPlot(100, 100, 1100, 700);
+        for (int i = 0; i < magnitudes.size(); i++) {
+            double value = magnitudes.get(i);
+            plot.plot(0, i, value).strokeColor("red").strokeWeight(2).style("-");
+        }
+        for (int i = 0; i < peakIndexes.size(); i++) {
+            double index = peakIndexes.get(i);
+            double value = peakValues.get(i);
+            plot.plot(1, index, value).strokeColor("blue").strokeWeight(5).style(".");
+        }
+        PlotWindow window = PlotWindow.getWindowFor(plot, 1200,800);
+        window.show();
     }
 
     public String readFile(String fileName) throws IOException {
@@ -70,5 +84,22 @@ public class StepCounter {
             }
         }
         return numPeaks;
+    }
+
+    public static ArrayList<Integer> getPeakIndexes(ArrayList<Double> data) {
+        ArrayList<Integer> peakIndexes = new ArrayList<>();
+        for (int i = 1; i < data.size() - 1; i++) {
+            if (data.get(i) > data.get(i - 1) && data.get(i) > data.get(i + 1)) {
+                peakIndexes.add((i));
+            }
+        }
+        return peakIndexes;
+    }
+    public static ArrayList<Double> getValuesAt(ArrayList<Double> data, ArrayList<Integer> peakIndexes) {
+        ArrayList<Double> values = new ArrayList<>();
+        for (int i = 0; i < peakIndexes.size(); i++) {
+            values.add(data.get(peakIndexes.get(i)));
+        }
+        return values;
     }
 }
