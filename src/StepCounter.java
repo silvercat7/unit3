@@ -1,23 +1,29 @@
 import Plot.PlotWindow;
 import Plot.ScatterPlot;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 
 public class StepCounter {
-    public StepCounter() throws IOException {
-        String data = readFile("./allison chang - 100 steps - 100 hz - data.csv");
-        String[] lines = data.split("\n");
+    public int countSteps(ArrayList<Double> xAcc, ArrayList<Double> yAcc, ArrayList<Double> zAcc,
+                          ArrayList<Double> xGyro, ArrayList<Double> yGyro, ArrayList<Double> zGyro) {
+        return countPeaks(getMagnitudes(xAcc, yAcc, zAcc));
+    }
+
+    public int countSteps(String csvFileText) {
+        String[] lines = csvFileText.split("\n");
         ArrayList<Double> accelerometerX = getColumn(getValues(lines), 0);
         ArrayList<Double> accelerometerY = getColumn(getValues(lines), 1);
         ArrayList<Double> accelerometerZ = getColumn(getValues(lines), 2);
-        plotData(accelerometerX);
-        System.out.println(countPeaks(getMagnitudes(accelerometerX, accelerometerY, accelerometerZ)));
+        plotData(smoothData(getMagnitudes(accelerometerX, accelerometerY, accelerometerZ)));
+        return countPeaks(smoothData(getMagnitudes(accelerometerX, accelerometerY, accelerometerZ)));
     }
 
-    public String readFile(String fileName) throws IOException {
-        return new String(Files.readAllBytes(Paths.get(fileName)));
+    public int countStepsBaseline(String csvFileText) {
+        String[] lines = csvFileText.split("\n");
+        ArrayList<Double> accelerometerX = getColumn(getValues(lines), 0);
+        ArrayList<Double> accelerometerY = getColumn(getValues(lines), 1);
+        ArrayList<Double> accelerometerZ = getColumn(getValues(lines), 2);
+        plotData(getMagnitudes(accelerometerX, accelerometerY, accelerometerZ));
+        return countPeaks((getMagnitudes(accelerometerX, accelerometerY, accelerometerZ)));
     }
 
     public ArrayList<Double> getValues(String[] lines) {
@@ -33,6 +39,7 @@ public class StepCounter {
         return values;
     }
 
+
     public ArrayList<Double> getColumn(ArrayList<Double> values, int columnNumber) {
         ArrayList<Double> column = new ArrayList<>();
         for (int i = columnNumber; i < values.size(); i += 6) {
@@ -41,13 +48,17 @@ public class StepCounter {
         return column;
     }
 
-    public void plotData(ArrayList<Double> accelerometerX) {
-        ScatterPlot plot = new ScatterPlot(100, 100, 1100, 700);
-        for (int i = 0; i < accelerometerX.size(); i++) {
-            plot.plot(0, i, accelerometerX.get(i)).strokeColor("red").strokeWeight(2).style("-");
+    public ArrayList<Double> smoothData(ArrayList<Double> magnitudes) {
+        for (int i = 0; i < 100; i++) {
+            for (int j = 1; j < magnitudes.size() - 1; j++) {
+                magnitudes.set(j, weightedAverage(magnitudes.get(j - 1), magnitudes.get(j), magnitudes.get(j + 1)));
+            }
         }
-        PlotWindow window = PlotWindow.getWindowFor(plot, 1200,800);
-        window.show();
+        return magnitudes;
+    }
+
+    public double weightedAverage(double a, double b, double c) {
+        return ((a/4) + (b/2) + (c/4));
     }
 
     public ArrayList<Double> getMagnitudes(ArrayList<Double> x, ArrayList<Double> y, ArrayList<Double> z) {
@@ -70,5 +81,57 @@ public class StepCounter {
             }
         }
         return numPeaks;
+    }
+
+    public double getThreshold(ArrayList<Double> magnitudes) {
+        int total = 0;
+        double sum = 0;
+        for (Double magnitude : magnitudes) {
+            sum += magnitude;
+            total++;
+        }
+        return sum/total;
+    }
+
+    public static ArrayList<Integer> getPeakIndexes(ArrayList<Double> data) {
+        ArrayList<Integer> peakIndexes = new ArrayList<>();
+        for (int i = 1; i < data.size() - 1; i++) {
+            if (data.get(i) > data.get(i - 1) && data.get(i) > data.get(i + 1)) {
+                peakIndexes.add((i));
+            }
+        }
+        return peakIndexes;
+    }
+
+    public static ArrayList<Double> getValuesAt(ArrayList<Double> data, ArrayList<Integer> peakIndexes) {
+        ArrayList<Double> values = new ArrayList<>();
+        for (int i = 0; i < peakIndexes.size(); i++) {
+            values.add(data.get(peakIndexes.get(i)));
+        }
+        return values;
+    }
+
+    public void plotData(ArrayList<Double> magnitudes) {
+        ScatterPlot basePlot = new ScatterPlot(100, 100, 1100, 700);
+        for (int i = 0; i < magnitudes.size(); i++) {
+            basePlot.plot(0, i, magnitudes.get(i)).strokeColor("red").strokeWeight(2).style("-");
+        }
+        PlotWindow window = PlotWindow.getWindowFor(basePlot, 1200,800);
+        window.show();
+    }
+
+    public static void plotPeaks(ArrayList<Double> magnitudes, ArrayList<Integer> peakIndexes, ArrayList<Double> peakValues) {
+        ScatterPlot plot = new ScatterPlot(100, 100, 1100, 700);
+        for (int i = 0; i < magnitudes.size(); i++) {
+            double value = magnitudes.get(i);
+            plot.plot(0, i, value).strokeColor("red").strokeWeight(2).style("-");
+        }
+        for (int i = 0; i < peakIndexes.size(); i++) {
+            double index = peakIndexes.get(i);
+            double value = peakValues.get(i);
+            plot.plot(1, index, value).strokeColor("blue").strokeWeight(5).style(".");
+        }
+        PlotWindow window = PlotWindow.getWindowFor(plot, 1200,800);
+        window.show();
     }
 }
